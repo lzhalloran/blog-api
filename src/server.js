@@ -81,6 +81,36 @@ app.get("/databaseHealth", (request, response) => {
   })
 });
 
+app.get("/databaseDump", async (request, response) => {
+  // Set up an object to store our data.
+  const dumpContainer = {};
+
+  // Get the names of all the collections in the DB.
+  var collections = await mongoose.connection.db.listCollections().toArray();
+  collections = collections.map((collection) => collection.name);
+
+  // For each collection, get all their data and add it to the dump container.
+  for (const collectionName of collections) {
+    let collectionData = await mongoose.connection.db
+      .collection(collectionName)
+      .find({})
+      .toArray();
+    dumpContainer[collectionName] = collectionData;
+  }
+
+  // Confirm in the terminal that the server is returning the right data.
+  // With pretty formatting too, via JSON.stringify(vale, null, spacing for indentation).
+  console.log(
+    "Dumping all of this data to the client: \n" +
+      JSON.stringify(dumpContainer, null, 4)
+  );
+
+  // Return the big data object.
+  response.json({
+    data: dumpContainer,
+  });
+});
+
 // Add a route just to make sure things work.
 // This path is the server API's "homepage".
 app.get("/", (request, response) => {
