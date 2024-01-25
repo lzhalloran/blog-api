@@ -119,6 +119,9 @@ app.get("/", (request, response) => {
   });
 });
 
+const rolesController = require("./controllers/RoleRoutes");
+app.use("/roles", rolesController);
+
 // Keep this route at the end of this file, only before the module.exports!
 // A 404 route should only trigger if no preceding routes or middleware was run.
 // So, put this below where any other routes are placed within this file.
