@@ -31,9 +31,41 @@ const roles = [
 ];
 
 // To fill in after creating user data encryption functionality.
-const users = [];
+const { hashString } = require("./controllers/UserFunctions");
+const users = [
+  {
+    username: "seedUser1",
+    email: "seed1@email.com",
+    password: null,
+    country: "Australia",
+    role: null,
+  },
+  {
+    username: "seedUser2",
+    email: "seed2@email.com",
+    password: null,
+    country: "TheBestOne",
+    role: null,
+  },
+];
 
-const posts = [];
+const posts = [
+  {
+    title: "Some seeded post",
+    description: "Very cool. Best post. Huge post. No other posts like it!",
+    author: null,
+  },
+  {
+    title: "Some other seeded post",
+    description: "Very cool. Best post. Huge post. One other post like it!",
+    author: null,
+  },
+  {
+    title: "Another seeded post",
+    description: "Very cool. Best post. Huge post. Two other posts like it!",
+    author: null,
+  },
+];
 
 // Connect to the database.
 var databaseURL = "";
@@ -87,9 +119,38 @@ databaseConnector(databaseURL)
   })
   .then(async () => {
     // Add new data into the database.
-    await Role.insertMany(roles);
+    // Store the new documents as a variable for use later.
+    let rolesCreated = await Role.insertMany(roles);
 
-    console.log("New DB data created.");
+    // Iterate through the users array, using for-of to enable async/await.
+    for (const user of users) {
+      // Set the password of the user.
+      user.password = await hashString("SomeRandomPassword1");
+      // Pick a random role from the roles created and set that for the user.
+      user.role =
+        rolesCreated[Math.floor(Math.random() * rolesCreated.length)].id;
+    }
+    // Save the users to the database.
+    let usersCreated = await User.insertMany(users);
+
+    // Same again for posts;
+    // pick a random user and assign that user as the author of a post.
+    for (const post of posts) {
+      post.author =
+        usersCreated[Math.floor(Math.random() * usersCreated.length)].id;
+    }
+    // Then save the posts to the database.
+    let postsCreated = await Post.insertMany(posts);
+
+    // Log modified to list all data created.
+    console.log(
+      "New DB data created.\n" +
+        JSON.stringify(
+          { roles: rolesCreated, users: usersCreated, posts: postsCreated },
+          null,
+          4
+        )
+    );
   })
   .then(() => {
     // Disconnect from the database.
