@@ -5,6 +5,9 @@ const router = express.Router();
 
 const { User } = require("../models/UserModel");
 
+const jwt = require("jsonwebtoken");
+const { Role } = require("../models/RoleModel");
+
 const {
   encryptString,
   decryptString,
@@ -43,6 +46,62 @@ const handleErrors = async (error, request, response, next) => {
         next();
     }
 }
+
+// Make sure the JWT available in the headers is valid,
+// and refresh it to keep the JWT usable for longer.
+const verifyJwtHeader = async (request, response, next) => {
+  let rawJwtHeader = request.headers.jwt;
+
+  let jwtRefresh = await verifyUserJWT(rawJwtHeader);
+
+  request.headers.jwt = jwtRefresh;
+
+  next();
+}
+
+const verifyJwtRole = async (request, response, next) => {
+  // Verify that the JWT is still valid.
+  let userJwtVerified = jwt.verify(request.headers.jwt,process.env.JWT_SECRET, {complete: true});
+  // Decrypt the encrypted payload.
+  let decryptedJwtPayload = decryptString(userJwtVerified.payload.data);
+  // Parse the decrypted data into an object.
+  let userData = JSON.parse(decryptedJwtPayload);
+  
+  // Because the JWT doesn't include role info, we must find the full user document first:
+  let userDoc = await User.findById(userData.userID).exec();
+  let userRoleName = await Role.findById(userDoc.role).exec();
+
+  // Attach the role to the request for the backend to use.
+  // Note that the user's role will never be available on the front-end
+  // with this technique.
+  // This means they can't just manipulate the JWT to access admin stuff.
+  console.log("User role is: " + userRoleName.name);
+  request.headers.userRole = userRoleName.name;
+
+  next();
+}
+
+// The actual authorization middleware.
+// Throw to the error-handling middleware
+// if the user is not authorized.
+// Different middleware can be made for
+// different roles, just like this.
+const onlyAllowAdmins = (request, response, next) => {
+  if (request.headers.userRole == "admin"){
+      next(); 
+  } else {
+      next(new Error("User not authorized."));
+  }
+}
+
+// All involved middleware must be attached to either
+// the app (Express instance), or the router (Express router instance)
+// or the specific route.
+router.get('/someProtectedRoute', verifyJwtHeader, verifyJwtRole, onlyAllowAdmins, (request, response) => {
+  
+  // No actual functionality here - focus on the middleware!
+  response.json({message: "Hello authorized world!"});
+});
 
 // Sign-up a new user
 router.post(
